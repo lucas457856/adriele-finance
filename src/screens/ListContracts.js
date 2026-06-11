@@ -140,7 +140,7 @@ export default function ListContracts({ navigation, route }) {
     const vParc    = Number(contrato.valorParcela) || 0;
     const numP     = `${parcela.numero}ª`;
     const item     = contrato.produto ? `(${contrato.produto})` : '';
-    const desc     = `pedido ${item} da ${contrato.marca || 'loja'}`;
+    const desc     = `pedido ${item}da ${contrato.marca || 'loja'}`;
     const pago     = contrato.parcelasPagas?.includes(parcela.numero);
 
     let msg = "";
@@ -152,7 +152,6 @@ export default function ListContracts({ navigation, route }) {
       msg = `Olá, ${nome}! Tudo bem? ✨\n\n` +
             `Passando para lembrar que a sua ${numP} parcela do seu ${desc} vence no próximo dia ${parcela.vencimento}.\n\n` +
             `💰 Valor: ${money(vParc)}\n\n` +
-            `Dados para pagamentos\n\n` +
             `Formas de pagamentos: Cartão Pix ou Dinheiro.\n` +
             `Se preferir outra opção só chamar! 😊\n\n` +
             `Segue os dados\n` +

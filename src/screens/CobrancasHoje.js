@@ -88,7 +88,7 @@ export default function CobrancasHoje({ navigation }) {
     const vParc    = Number(contrato.valorParcela) || 0;
     const numP     = `${parcela.numero}ª`;
     const item     = contrato.produto ? `(${contrato.produto})` : '';
-    const desc     = `pedido ${item} da ${contrato.marca || 'loja'}`;
+    const desc     = `pedido ${item}da ${contrato.marca || 'loja'}`;
 
     // Lógica de introdução baseada na aba (Hoje ou Vencidas)
     const intro  = aba === 'hoje'
@@ -97,7 +97,6 @@ export default function CobrancasHoje({ navigation }) {
 
     const msg = `${intro}\n\n` +
       `💰 Valor: ${money(vParc)}\n\n` +
-      `Dados para pagamento\n\n` +
       `Formas de pagamentos: Cartão ou Dinheiro.\n` +
       `Se preferir outra opção só chamar! 😊\n\n` +
       `Segue os dados\n` +
