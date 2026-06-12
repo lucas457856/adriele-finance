@@ -95,20 +95,50 @@ export default function ContractModal({ visible, onClose, onFinish }) {
     c.nome?.toLowerCase().includes(busca.toLowerCase())
   );
 
-  const criarVenda = async () => {
+const criarVenda = async () => {
+  try {
     if (!cliente) return;
-    if (!dataInicio) { alert('Informe a data de início'); return; }
-    await addContrato({
-      tipo, numeroContrato: numeroVenda, data: dataInicio,
-      clienteId: cliente.id, marca,
-      valor: valorTotal, entrada: valorEntrada,
-      parcelas: qtdParcelas, parcelasOriginais: qtdParcelas,
+
+    const quantidadeParcelas = Number(parcelas) || 0;
+
+    const novoContrato = {
+      tipo,
+      numeroContrato: numeroVenda,
+      data: dataInicio || new Date().toLocaleDateString(),
+      clienteId: cliente.id,
+      marca,
+      valor: valorTotal,
+      entrada: valorEntrada,
+      parcelas: quantidadeParcelas,
+      parcelasOriginais: quantidadeParcelas,
       intervaloDias: Number(intervaloDias) || 30,
-      parcelasPagas: [], totalReceber: faltaReceber,
-      valorParcela, produto,
-    });
-    onFinish?.(); fechar();
-  };
+      parcelasPagas: [],
+      totalReceber: faltaReceber,
+      valorParcela,
+      produto,
+    };
+
+    console.log('🔥 Salvando contrato...', novoContrato);
+
+    await addContrato(novoContrato);
+
+    // ⚠️ SE VOCÊ NÃO TEM ESSA FUNÇÃO, COMENTE ISSO POR ENQUANTO
+    // const parcelasGeradas = gerarParcelas(novoContrato); 
+    // for (const p of parcelasGeradas) {
+    //   await schedulePaymentReminders(novoContrato, p, cliente.nome);
+    // }
+
+    console.log('✅ Venda salva com sucesso');
+
+    onFinish?.();
+    fechar();
+
+  } catch (error) {
+    console.log('❌ ERRO AO SALVAR VENDA:', error);
+    alert('Erro ao salvar venda. Veja o console.');
+  }
+};
+
 
   return (
     <Modal

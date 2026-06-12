@@ -22,6 +22,19 @@ import {
 } from '../services/contracts';
 import { subscribeClientes } from '../services/database';
 
+import * as Notifications from 'expo-notifications';
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
+
+
+
+
 // ─── Palette Fixa (Cores de Destaque) ───────────────────────────────────────
 const ACCENT  = '#A78BFA';
 const GREEN   = '#34D399';
@@ -75,6 +88,13 @@ export default function ListContracts({ navigation, route }) {
   const getSituacao = (c) =>
     (c.parcelasPagas?.length || 0) >= c.parcelas ? 'Quitado' : 'Em Aberto';
 
+  function formatBRDate(d) {
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
+}
+
   const gerarParcelas = (c) => {
     const parcelas  = Number(c.parcelas) || 0;
     const intervalo = Number(c.intervaloDias) || 0;
@@ -83,7 +103,10 @@ export default function ListContracts({ navigation, route }) {
     let dt = new Date(y, m - 1, d);
     return Array.from({ length: parcelas }, (_, i) => {
       dt.setDate(dt.getDate() + intervalo);
-      return { numero: i + 1, vencimento: new Date(dt).toLocaleDateString('pt-BR') };
+      return { 
+  numero: i + 1, 
+  vencimento: formatBRDate(dt)
+};
     });
   };
 
@@ -103,20 +126,61 @@ export default function ListContracts({ navigation, route }) {
 
   const openDetails = (item) => { setSelected(item); setModalDetails(true); };
 
-  const pagarDireto = async (parcela) => {
-    if (!selected) return;
-    const pagas   = [...(selected.parcelasPagas || [])];
-    if (!pagas.includes(parcela.numero)) pagas.push(parcela.numero);
-    const novoTotal = Math.max(0, Number(selected.totalReceber) - Number(selected.valorParcela));
-    const updated = { ...selected, parcelasPagas: pagas, totalReceber: novoTotal };
-    await updateContrato(selected.id, { parcelasPagas: pagas, totalReceber: novoTotal });
-    setSelected(updated);
-    setContratos(prev => prev.map(c => c.id === selected.id ? updated : c));
+const pagarDireto = async (parcela) => {
+  if (!selected) return;
+
+  console.log("📌 BAIXANDO PARCELA:", parcela.numero);
+
+  const ref = selected.id;
+
+  const atuais = selected.parcelasPagas || [];
+
+  const jaExiste = atuais.includes(parcela.numero);
+
+  const novosPagos = jaExiste
+    ? atuais
+    : [...atuais, parcela.numero];
+
+  const vParcela = Number(selected.valorParcela) || 0;
+  const totalAtual = Number(selected.totalReceber) || 0;
+
+  const novoTotal = Math.max(0, totalAtual - vParcela);
+
+  const updated = {
+    ...selected,
+    parcelasPagas: novosPagos,
+    totalReceber: novoTotal,
   };
+
+  console.log("🔥 Atualizando Firestore...");
+
+  await updateContrato(ref, {
+    parcelasPagas: novosPagos,
+    totalReceber: novoTotal,
+  });
+
+  console.log("✅ Firestore atualizado");
+
+  // 🔥 força atualização imediata na tela
+  setSelected(updated);
+
+  setContratos(prev =>
+    prev.map(c =>
+      c.id === ref ? updated : c
+    )
+  );
+
+  console.log("🔄 UI atualizada");
+};
+
 
   const baixarJuros = async (parcela) => {
     if (!selected) return;
-    const total = Number(selected.totalReceber);
+
+    // 1. Cancela as notificações desta parcela
+    await cancelPaymentReminders(selected, parcela); // 🔥 ADICIONE ISSO
+
+    const total = Number(selected.totalReceber) || 0;
     const vParc = total / (Number(selected.parcelasOriginais) || 1);
     const jpList = [...(selected.parcelasJurosPagos || [])];
     if (!jpList.includes(parcela.numero)) jpList.push(parcela.numero);
@@ -125,6 +189,7 @@ export default function ListContracts({ navigation, route }) {
     setSelected(updated);
     setContratos(prev => prev.map(c => c.id === selected.id ? updated : c));
   };
+
 
   const handleDelete = async () => {
     if (!selected) return;

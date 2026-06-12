@@ -1,25 +1,54 @@
 import { NavigationContainer } from '@react-navigation/native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import 'react-native-gesture-handler';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import './global.css';
 
+import * as Notifications from 'expo-notifications';
+
 import SplashVideo from './SplashVideo';
+import { ThemeProvider } from './src/context/ThemeContext';
 import AppNavigator from './src/navigation/AppNavigator';
 
-// 👇 IMPORTA O PROVIDER
-import { ThemeProvider } from './src/context/ThemeContext';
+import { loadAndSync } from './src/services/firebaseSync';
+
+// 🔥 NOTIFICAÇÕES GLOBAIS
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
 
-  // 👇 SPLASH PRIMEIRO (não precisa de Theme aqui)
+  // 🔥 RODA DEPOIS QUE APP JÁ CARREGOU
+  useEffect(() => {
+    async function init() {
+      try {
+        console.log('🔥 Iniciando sync...');
+
+        const timer = setTimeout(async () => {
+          await loadAndSync();
+          console.log('🔥 Sync concluído');
+        }, 3000); // 🔥 espera splash + init Android
+
+        return () => clearTimeout(timer);
+      } catch (error) {
+        console.log('Erro no sync:', error);
+      }
+    }
+
+    init();
+  }, []);
+
   if (showSplash) {
     return <SplashVideo onFinish={() => setShowSplash(false)} />;
   }
 
-  // 👇 APP NORMAL COM THEME
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider>

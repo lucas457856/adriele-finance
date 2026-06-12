@@ -14,19 +14,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemeContext } from '../context/ThemeContext';
 import { login } from '../services/api';
 
+// 🔥 IMPORT IMPORTANTE
+import { loadAndSync } from '../services/firebaseSync';
+
 // ─── Palette de Destaque ─────────────────────────────────────────────────────
 const ACCENT = '#A78BFA';
 const GREEN  = '#34D399';
-// ────────────────────────────────────────────────────────────────────────────
 
 export default function Login({ navigation }) {
   const { theme, toggleTheme } = useContext(ThemeContext);
   const isDark = theme.dark;
 
-  // ── Cores Dinâmicas (Sincronizadas com o CustomDrawer) ────────────────────
   const bg     = isDark ? '#0F1219' : '#F0F2F8';
   const card   = isDark ? '#161B27' : '#FFFFFF';
-  const card2  = isDark ? '#1C2235' : '#F9FAFB';
   const border = isDark ? '#1E2330' : '#E2E6F0';
   const txt    = isDark ? '#E8ECF4' : '#1A1F2E';
   const sub    = isDark ? '#8892A4' : '#6B7590';
@@ -38,13 +38,21 @@ export default function Login({ navigation }) {
   const [menuVisible, setMenuVisible] = useState(false);
 
   const handleLogin = async () => {
-    if (!username || !password) {
-      return;
-    }
+    if (!username || !password) return;
+
     try {
       setLoading(true);
+
+      // 🔥 1. login primeiro
       await login(username, password);
+
+      // 🔥 2. AGORA sincroniza notificações
+      console.log('🔥 Rodando sync após login...');
+      await loadAndSync();
+
+      // 🔥 3. vai para dashboard
       navigation.replace('Dashboard');
+
     } catch (error) {
       Alert.alert('Erro', error.message);
     } finally {
