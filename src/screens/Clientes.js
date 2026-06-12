@@ -20,7 +20,7 @@ import {
 
 // ─── Palette Fixa (Cores de Destaque) ───────────────────────────────────────
 const ACCENT = '#A78BFA';
-const GREEN  = '#34D399';
+// const GREEN  = '#34D399';
 const RED    = '#F87171';
 // ────────────────────────────────────────────────────────────────────────────
 

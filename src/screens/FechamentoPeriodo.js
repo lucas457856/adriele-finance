@@ -1,10 +1,10 @@
-import { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useMemo, useState } from 'react';
 import {
-    Platform,
-    ScrollView,
-    Text,
-    TouchableOpacity,
-    View
+  Platform,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';

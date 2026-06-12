@@ -1,40 +1,13 @@
 import * as Notifications from 'expo-notifications';
-import { collection, getDocs } from 'firebase/firestore';
-import { db } from './firebase';
+import {
+  initializeNotifications,
+  NOTIFICATION_CHANNEL_ID,
+} from './notificationSetup';
 
 // ==================================================
 // 🔥 FETCH
 // ==================================================
-export async function fetchData() {
-  console.log("==================================================");
-  console.log("🔥 LOAD AND SYNC INICIADO");
 
-  const clientesSnap = await getDocs(collection(db, "clientes"));
-  const vendasSnap = await getDocs(collection(db, "vendas"));
-
-  const clientes = clientesSnap.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data(),
-  }));
-
-  const vendas = vendasSnap.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data(),
-  }));
-
-  console.log("📥 clientes:", clientes.length);
-  console.log("📥 vendas:", vendas.length);
-
-  return { clientes, vendas };
-}
-
-// ==================================================
-// 🧹 CLEAR
-// ==================================================
-async function clearNotifications() {
-  console.log("🧹 Limpando notificações...");
-  await Notifications.cancelAllScheduledNotificationsAsync();
-}
 
 // ==================================================
 // 📅 HOJE (CELULAR REAL)
@@ -89,11 +62,11 @@ function gerarParcelas(venda) {
 
   for (let i = 1; i <= total; i++) {
 
-const vencimento = new Date(base);
+    const vencimento = new Date(base);
 
-// 🔥 PRIMEIRA PARCELA COMEÇA NO DIA SEGUINTE
-vencimento.setDate(vencimento.getDate() + 1 + (intervalo * (i - 1)));
-vencimento.setHours(0, 0, 0, 0);
+    // 🔥 PRIMEIRA PARCELA COMEÇA NO DIA SEGUINTE
+    vencimento.setDate(vencimento.getDate() + 1 + (intervalo * (i - 1)));
+    vencimento.setHours(0, 0, 0, 0);
 
     console.log(`📅 Parcela ${i}:`, vencimento.toLocaleDateString("pt-BR"));
 
@@ -149,56 +122,213 @@ function buildMessage(cliente, parcela, total, valor, dias) {
 }
 
 // ==================================================
-// 🔔 SCHEDULE
+// 🔑 IDENTIFICADOR ÚNICO
 // ==================================================
-async function scheduleNotification(message, targetDate, dataExtra) {
+function normalizeId(value) {
+  return String(value ?? '')
+    .trim()
+    .replace(/[^a-zA-Z0-9_-]/g, '_');
+}
 
-  const now = getHoje();
-  const target = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
+function buildNotificationIdentifier(clienteId, vendaId, parcelaNumero) {
+  return `cobranca_${normalizeId(clienteId)}_${normalizeId(vendaId)}_${normalizeId(parcelaNumero)}`;
+}
 
-  const rawSeconds = Math.floor((target.getTime() - now.getTime()) / 1000);
+// ==================================================
+// 📋 MAPA DE NOTIFICAÇÕES AGENDADAS
+// ==================================================
+async function getScheduledNotificationsMap() {
+  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+  const map = new Map();
 
-  console.log("⏱️ raw seconds:", rawSeconds);
-
-  let seconds = rawSeconds;
-
-  if (seconds <= 0) {
-    console.log("⚠️ data já passou ou é hoje → fallback 60s");
-    seconds = 60;
+  for (const notification of scheduled) {
+    if (notification.identifier) {
+      map.set(notification.identifier, notification);
+    }
   }
 
-  console.log("⏱️ agendando em segundos:", seconds);
+  console.log("📋 notificações já registradas no sistema:", map.size);
+
+  return map;
+}
+
+// ==================================================
+// 📅 TRIGGER POR DATA
+// ==================================================
+function buildDateTrigger(targetDate) {
+  const triggerDate = new Date(
+    targetDate.getFullYear(),
+    targetDate.getMonth(),
+    targetDate.getDate(),
+    0,
+    0,
+    0
+  );
+
+  const now = new Date();
+
+  if (triggerDate.getTime() <= now.getTime()) {
+    console.log("⚠️ data já passou ou é hoje → agendamento imediato em 1s");
+
+    return {
+      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+      seconds: 1,
+      repeats: false,
+      channelId: NOTIFICATION_CHANNEL_ID,
+    };
+  }
+
+  console.log("📅 trigger DATE:", triggerDate.toLocaleString("pt-BR"));
+
+  return {
+    type: Notifications.SchedulableTriggerInputTypes.DATE,
+    date: triggerDate,
+    channelId: NOTIFICATION_CHANNEL_ID,
+  };
+}
+
+function getDateValue(value) {
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') return new Date(value).getTime();
+  return null;
+}
+
+function getTriggerSignature(trigger) {
+  if (!trigger) return 'null';
+
+  const channelId = trigger.channelId || null;
+
+  if (
+    trigger.type === Notifications.SchedulableTriggerInputTypes.DATE ||
+    trigger.type === 'date'
+  ) {
+    return `date:${getDateValue(trigger.date)}:${channelId}`;
+  }
+
+  if (
+    trigger.type === Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL ||
+    trigger.type === 'timeInterval'
+  ) {
+    return `interval:${trigger.seconds ?? 0}:${trigger.repeats ?? false}:${channelId}`;
+  }
+
+  return JSON.stringify(trigger);
+}
+
+function getContentSignature(content) {
+  return JSON.stringify({
+    title: content.title,
+    body: content.body,
+    sound: content.sound,
+    priority: content.priority,
+    data: content.data,
+  });
+}
+
+function notificationNeedsUpdate(existing, nextContent, nextTrigger) {
+  if (!existing) return false;
+
+  const existingContentSignature = getContentSignature(existing.content || {});
+  const nextContentSignature = getContentSignature(nextContent);
+
+  const existingTriggerSignature = getTriggerSignature(existing.trigger);
+  const nextTriggerSignature = getTriggerSignature(nextTrigger);
+
+  const contentChanged = existingContentSignature !== nextContentSignature;
+  const triggerChanged = existingTriggerSignature !== nextTriggerSignature;
+
+  console.log("🔎 notificação existente encontrada:", existing.identifier);
+  console.log("🔎 conteúdo igual?", !contentChanged);
+  console.log("🔎 trigger igual?", !triggerChanged);
+
+  return contentChanged || triggerChanged;
+}
+
+// ==================================================
+// 🔔 SCHEDULE
+// ==================================================
+async function scheduleNotification(message, targetDate, dataExtra, scheduledMap) {
+  const identifier = buildNotificationIdentifier(
+    dataExtra.clienteId,
+    dataExtra.vendaId,
+    dataExtra.parcelaNumero
+  );
+
+  const existing = scheduledMap.get(identifier);
+
+  const content = {
+    title: "Cobrança",
+    body: message,
+    sound: "default",
+    priority: Notifications.AndroidNotificationPriority.MAX,
+    data: dataExtra,
+  };
+
+  const trigger = buildDateTrigger(targetDate);
+
+  console.log("🔑 identifier:", identifier);
   console.log("🔥 mensagem:", message);
 
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: "Cobrança",
-      body: message,
-      sound: true,
-      priority: Notifications.AndroidNotificationPriority.MAX,
-      data: dataExtra,
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-      seconds,
-      repeats: false,
-    },
-  });
+  try {
+    if (existing) {
+      const needsUpdate = notificationNeedsUpdate(existing, content, trigger);
 
-  console.log("✅ notificação criada");
+      if (!needsUpdate) {
+        console.log("🚫 notificação ignorada: já existe e está igual");
+        return { status: 'ignored', identifier };
+      }
+
+      console.log("🔄 notificacao existente será atualizada");
+      await Notifications.cancelScheduledNotificationAsync(identifier);
+
+      const notificationId = await Notifications.scheduleNotificationAsync({
+        identifier,
+        content,
+        trigger,
+      });
+
+      scheduledMap.set(identifier, {
+        identifier: notificationId,
+        content,
+        trigger,
+      });
+
+      console.log("✅ notificação atualizada:", notificationId);
+      return { status: 'updated', identifier: notificationId };
+    }
+
+    const notificationId = await Notifications.scheduleNotificationAsync({
+      identifier,
+      content,
+      trigger,
+    });
+
+    scheduledMap.set(identifier, {
+      identifier: notificationId,
+      content,
+      trigger,
+    });
+
+    console.log("✅ notificação criada:", notificationId);
+    return { status: 'created', identifier: notificationId };
+  } catch (error) {
+    console.error("❌ erro ao agendar notificação:", identifier, error);
+    return { status: 'error', identifier, error };
+  }
 }
 
 // ==================================================
 // 📌 PARCELA
 // ==================================================
-async function scheduleParcela(cliente, venda, parcela) {
+async function scheduleParcela(cliente, venda, parcela, scheduledMap) {
 
   console.log("--------------------------------------------------");
   console.log("📌 PARCELA:", parcela.numero);
 
   if (parcela.paga) {
-    console.log("✅ já paga");
-    return;
+    console.log("🚫 notificação ignorada: parcela já paga");
+    return { status: 'ignored', reason: 'paid' };
   }
 
   const total = Number(venda.parcelas || 1);
@@ -217,13 +347,16 @@ async function scheduleParcela(cliente, venda, parcela) {
   console.log("📅 dias:", dias);
   console.log("🔥 mensagem:", message);
 
-  if (!message) return;
+  if (!message) {
+    console.log("🚫 notificação ignorada: sem regra de mensagem para estes dias");
+    return { status: 'ignored', reason: 'no-message' };
+  }
 
-  await scheduleNotification(message, parcela.vencimento, {
+  return scheduleNotification(message, parcela.vencimento, {
     clienteId: cliente.id,
     vendaId: venda.id,
     parcelaNumero: parcela.numero,
-  });
+  }, scheduledMap);
 }
 
 // ==================================================
@@ -242,7 +375,26 @@ export async function syncNotifications(clientes, vendas) {
   console.log("==================================================");
   console.log("🔥 SYNC INICIADO");
 
-  await clearNotifications();
+  const allowed = await initializeNotifications();
+
+  if (!allowed) {
+    console.warn("⚠️ sync finalizado sem agendar notificações: permissão negada");
+    return {
+      created: 0,
+      updated: 0,
+      ignored: 0,
+      errors: 0,
+    };
+  }
+
+  const scheduledMap = await getScheduledNotificationsMap();
+
+  const stats = {
+    created: 0,
+    updated: 0,
+    ignored: 0,
+    errors: 0,
+  };
 
   for (const cliente of clientes) {
 
@@ -262,18 +414,23 @@ export async function syncNotifications(clientes, vendas) {
       console.log("🧾 parcelas:", parcelas.length);
 
       for (const parcela of parcelas) {
-        await scheduleParcela(cliente, venda, parcela);
+        const result = await scheduleParcela(cliente, venda, parcela, scheduledMap);
+
+        if (result.status === 'created') stats.created += 1;
+        if (result.status === 'updated') stats.updated += 1;
+        if (result.status === 'ignored') stats.ignored += 1;
+        if (result.status === 'error') stats.errors += 1;
       }
     }
   }
 
+  console.log("==================================================");
+  console.log("📊 RESUMO DO SYNC");
+  console.log("✅ criadas:", stats.created);
+  console.log("🔄 atualizadas:", stats.updated);
+  console.log("🚫 ignoradas:", stats.ignored);
+  console.log("❌ erros:", stats.errors);
   console.log("🔥 SYNC FINALIZADO");
-}
 
-// ==================================================
-// 🚀 ENTRY
-// ==================================================
-export async function runFullSync() {
-  const { clientes, vendas } = await fetchData();
-  await syncNotifications(clientes, vendas);
+  return stats;
 }

@@ -13,18 +13,8 @@ import { ThemeContext } from '../context/ThemeContext';
 import { subscribeContratos } from '../services/contracts';
 import { subscribeClientes } from '../services/database';
 
-import * as Notifications from 'expo-notifications';
-
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
-
 // ─── Palette Fixa (Cores de Destaque) ───────────────────────────────────────
-const ACCENT  = '#A78BFA';
+// const ACCENT  = '#A78BFA';
 const GREEN   = '#34D399';
 const RED     = '#F87171';
 

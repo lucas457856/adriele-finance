@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useContext, useState } from 'react';
 import {
   ActivityIndicator,
   RefreshControl,
@@ -13,7 +13,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import DonutChart from '../components/DonutChart';
 
 import { useFocusEffect } from '@react-navigation/native';
-import { useContext } from 'react';
+
 import ContractModal from '../components/ContractModal';
 import { ThemeContext } from '../context/ThemeContext';
 import { getContratos } from '../services/contracts';
@@ -26,7 +26,6 @@ const YELLOW   = '#FBBF24';
 const PURPLE   = '#C084FC';
 const DIVIDER  = '#1E2330';
 const SURFACE  = '#161B27';
-const SURFACE2 = '#1C2235';
 // ────────────────────────────────────────────────────────────────────────────
 
 export default function Dashboard({ navigation }) {
@@ -40,7 +39,7 @@ export default function Dashboard({ navigation }) {
   const isDark = theme.dark;
   const bg     = isDark ? '#0F1219' : '#F0F2F8';
   const card   = isDark ? SURFACE   : '#FFFFFF';
-  const card2  = isDark ? SURFACE2  : '#F7F8FC';
+  // const card2  = isDark ? SURFACE2  : '#F7F8FC';
   const txt    = isDark ? '#E8ECF4' : '#1A1F2E';
   const sub    = isDark ? '#8892A4' : '#6B7590';
   const border = isDark ? DIVIDER   : '#E2E6F0';

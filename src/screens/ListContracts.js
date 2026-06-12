@@ -2,6 +2,7 @@ import { useContext, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Linking,
   Modal,
   ScrollView,
   Text,
@@ -11,7 +12,7 @@ import {
 } from 'react-native';
 
 import { FontAwesome, Ionicons } from '@expo/vector-icons';
-import { Linking } from 'react-native';
+
 
 import ContractModal from '../components/ContractModal';
 import { ThemeContext } from '../context/ThemeContext';
@@ -21,17 +22,6 @@ import {
   updateContrato
 } from '../services/contracts';
 import { subscribeClientes } from '../services/database';
-
-import * as Notifications from 'expo-notifications';
-
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
-
 
 
 
@@ -122,7 +112,7 @@ export default function ListContracts({ navigation, route }) {
       openDetails(route.params.abrirContrato);
       navigation.setParams({ abrirContrato: null });
     }
-  }, [route?.params]);
+  }, [route?.params, navigation]);
 
   const openDetails = (item) => { setSelected(item); setModalDetails(true); };
 
@@ -178,7 +168,7 @@ const pagarDireto = async (parcela) => {
     if (!selected) return;
 
     // 1. Cancela as notificações desta parcela
-    await cancelPaymentReminders(selected, parcela); // 🔥 ADICIONE ISSO
+    // await cancelPaymentReminders(selected, parcela); // 🔥 ADICIONE ISSO
 
     const total = Number(selected.totalReceber) || 0;
     const vParc = total / (Number(selected.parcelasOriginais) || 1);

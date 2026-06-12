@@ -8,11 +8,9 @@
     "scheme": "agtclone",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-
     "ios": {
       "supportsTablet": true
     },
-
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
@@ -21,14 +19,14 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.agtcontroller.finance",
-      "permissions": ["NOTIFICATIONS"]
+      "permissions": [
+        "NOTIFICATIONS"
+      ]
     },
-
     "web": {
       "output": "single",
       "favicon": "./assets/images/favicon.png"
     },
-
     "plugins": [
       [
         "expo-splash-screen",
@@ -38,14 +36,14 @@
           "resizeMode": "contain"
         }
       ],
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "expo-font",
+      "expo-web-browser"
     ],
-
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
     },
-
     "extra": {
       "eas": {
         "projectId": "29476289-c335-40d7-8dda-ea778838340c"

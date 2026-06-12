@@ -1,11 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useContext, useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    ScrollView,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import DonutChart from '../components/DonutChart';
 import { ThemeContext } from '../context/ThemeContext';
@@ -16,7 +16,7 @@ const ACCENT  = '#A78BFA';
 const BLUE    = '#60A5FA';
 const YELLOW  = '#FBBF24';
 const ORANGE  = '#FB923C';
-const GREEN   = '#34D399';
+//const GREEN   = '#34D399';
 // ────────────────────────────────────────────────────────────────────────────
 
 export default function BrandStats({ navigation }) {

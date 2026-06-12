@@ -19,7 +19,7 @@ import { loadAndSync } from '../services/firebaseSync';
 
 // ─── Palette de Destaque ─────────────────────────────────────────────────────
 const ACCENT = '#A78BFA';
-const GREEN  = '#34D399';
+// const GREEN  = '#34D399';
 
 export default function Login({ navigation }) {
   const { theme, toggleTheme } = useContext(ThemeContext);
